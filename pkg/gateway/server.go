@@ -2,7 +2,7 @@ package gateway
 
 import (
 	"context"
-	"io"
+	"log"
 
 	"github.com/zeebe-io/zeebe/clients/go/pkg/pb"
 	"github.com/zeebe-io/zeebe/clients/go/pkg/zbc"
@@ -24,21 +24,18 @@ func Init(gatewayAddr string) error {
 	return err
 }
 
-func (s *GatewayServerImpl) Topology(context.Context, *pb.TopologyRequest) (*pb.TopologyResponse, error) {
-	topology, err := zbClient.Topology(ctx, &pb.TopologyRequest{})
-	return topology, err
-}
 func (*GatewayServerImpl) ActivateJobs(req *pb.ActivateJobsRequest, srv pb.Gateway_ActivateJobsServer) error {
 	stream, err := zbClient.ActivateJobs(ctx, req)
+	if err != nil {
+		log.Println("Error while activating jobs:", err)
+		return err
+	}
 	for {
 		response, err := stream.Recv()
-		srv.Send(response)
-		if err == io.EOF {
+		if err != nil { // err == io.EOF
 			break
 		}
-		if err != nil {
-			return err
-		}
+		srv.Send(response)
 	}
 	return err
 }
@@ -81,6 +78,10 @@ func (*GatewayServerImpl) ResolveIncident(ctx context.Context, req *pb.ResolveIn
 func (*GatewayServerImpl) SetVariables(ctx context.Context, req *pb.SetVariablesRequest) (*pb.SetVariablesResponse, error) {
 	response, err := zbClient.SetVariables(ctx, req)
 	return response, err
+}
+func (s *GatewayServerImpl) Topology(context.Context, *pb.TopologyRequest) (*pb.TopologyResponse, error) {
+	topology, err := zbClient.Topology(ctx, &pb.TopologyRequest{})
+	return topology, err
 }
 func (*GatewayServerImpl) UpdateJobRetries(ctx context.Context, req *pb.UpdateJobRetriesRequest) (*pb.UpdateJobRetriesResponse, error) {
 	response, err := zbClient.UpdateJobRetries(ctx, req)
